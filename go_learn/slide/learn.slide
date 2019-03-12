@@ -1,0 +1,369 @@
+Golang Coding Standard
+
+Huang_Xuezhong
+33.cn
+hxz@disanbo.com
+http://hxzqlh.com
+
+* Project
+
+项目的目录结构尽量做到简明、层次清楚
+
+ PROJECT_NAME
+ ├── README.md 介绍软件及文档入口
+ ├── build 编译好的二进制文件,也用于程序打包
+ ├── Makefile/build.sh 自动编译、打包的脚本
+ ├── doc 该项目的文档
+ └── src 该项目的源代码
+    ├── main 项目主函数
+    ├── model 项目代码
+    ├── research 在实现该项目中探究的一些程序
+    └── vendor 存放go的库
+        ├── github.com/xxx 第三方库
+        └── xxx.com/obc 公司内部的公共库
+
+* Formatting
+
+- Tab indent
+- No ;
+
+ type T struct {
+    name string // name of the object
+    value int // its value
+ }
+
+use *gofmt* cmd:
+
+ type T struct {
+     name  string // name of the object
+     value int    // its value
+ }
+
+* Package
+
+- 包名尽量和目录保持一致
+- 尽量采取有意义的包名，简短，有意义
+- 尽量不要和标准库冲突
+
+* import
+
+建议采用如下顺序组织包：标准库包，程序内部包，第三方包
+
+ import (
+    "encoding/json"
+    "strings"
+
+    "myproject/models"
+    "myproject/controller"
+    "git.obc.im/obc/utils"
+
+    "git.obc.im/dep/beego"
+ )
+
+- Not suggested
+ import "../net"
+ import . "/path/of/foo"
+
+* Commantory
+
+- Use // instead of `/*...*/`
+- Comments should begin with the name of the thing being described and end in a *.* 
+
+ // Request represents a request to run a command.
+ type Request struct { ...
+
+ // Encode writes the JSON encoding of req to w.
+ func Encode(w io.Writer, req *Request) { ...
+
+
+* Interface
+
+单个函数的接口名以 ”er” 作为后缀，如 Reader,Writer,接口的实现则去掉 “er”
+
+ type Reader interface {
+    Read(p []byte) (n int, err error)
+ }
+
+两个函数的接口名综合两个函数名
+
+ type WriteFlusher interface {
+    Write([]byte) (int, error)
+    Flush() error
+ }
+
+三个以上函数的接口名，类似于结构体名
+
+ type Car interface {
+    Start([]byte) 
+    Stop() error
+    Recover()
+ }
+
+* Variables
+
+- *驼峰命名法* 
+- 全局变量：*大写* 字母开头，GlobalName
+- 仅限在包内的全局变量，包外引用需要通过方法调用 
+- 局部变量：*小写* 字母开头, localName
+
+* Constants
+
+- *大写* 字母开头
+- 巧用 iota
+
+ const Pi = 3.14
+ const World = "世界"
+ const Truth = true
+ 
+ type ByteSize float64
+ const (
+    _           = iota // ignore first value by assigning to blank identifier
+    KB ByteSize = 1 << (10 * iota)
+    MB
+    GB
+    TB
+    PB
+    EB
+    ZB
+    YB
+ )
+
+* Function
+
+- 函数名采用 *驼峰命名法* ，尽量不要使用下划线
+- 包方法名首字母大写，内部方法名首字母小写
+- 接收者名称：struct的第一个字母且为小写，而不是 *this*， *me* 或者 *self*
+
+  type T struct{} 
+  func (t *T)Get(){}
+
+- 如果接收者是 map,slice或者chan，不要用指针传递
+ 
+ type mp map[string]string
+ func (m mp) Set(k, v string) {
+    m[k] = v
+ }
+
+* Closure
+
+在循环中调用函数或者goroutine方法，一定要采用显示的变量调用，不要在闭包函数里面调用循环的参数
+
+ for i:=0; i<limit; i++ {
+    go func(){DoSomething(i)}() //wrong way
+    go func(i int){DoSomething(i)}(i) //correct way
+ }
+
+.link http://golang.org/doc/articles/race_detector.html#Race_on_loop_counter Race_on_loop_counter
+
+* struct
+
+- 采用多行
+
+申明：
+
+ type User struct{
+    Username  string
+    Email     string
+ }
+
+初始化：
+
+ u := User{
+    Username: "hxz",
+    Email:    "hxzqlhe@gmail.com",
+ }
+
+- 带 *mutex* 的 struct 必须是指针 receivers
+
+
+* Slice
+
+prefer
+
+ var t []string
+
+than
+
+ t := []string{}
+
+The former declares a nil slice value, while the latter is non-nil but zero-length. 
+They are functionally equivalent—their len and cap are both zero—but the nil slice is the preferred style.
+
+* Goroutine Lifetimes
+
+When you spawn goroutines, make it clear when - or whether - they exit.
+
+* Error
+
+define
+
+ func yourFunction(parametersList) (..., error)
+ func (Receiver)yourMethod(parametersList) (..., error)
+
+call
+
+ ..., err := yourFunction(...)
+ if err != nil {
+    //error handling
+ }
+
+or
+
+ if ..., err := yourFunction(...); err != nil {
+    //error handling
+ }
+
+* Error Handle
+
+- Do not ignore error, check it.
+- error msg: 头字母小写，结尾不带标点
+
+ ... err := errors.New("error example")
+ fmt.Printf("The returned error is %s.\n", err)
+
+* Error Idio Usage
+
+- Not Suggested
+
+  x, err := xxx()
+  if err != nil {
+    // error handling
+  } else {        
+    // normal code
+  }
+
+- Suggested
+
+  x, err := xxx()
+  if err != nil {
+    // error handling
+    return err // or continue, etc
+  } 
+  
+  // normal code
+
+* Error flow
+
+- How to deal with such codes？
+
+ err := doStuff1()
+ if err != nil {
+    //handle error...
+ }
+
+ err = doStuff2()
+ if err != nil {
+    //handle error...
+ }
+
+ err = doStuff3()
+ if err != nil {
+    //handle error...
+ }
+
+ err = doStuff4()
+ if err != nil {
+    //handle error...
+ }
+ ...
+
+* 1.checkError style
+
+ func checkError(err error) {
+    if err != nil {
+        fmt.Println("Error is ", err)
+        os.Exit(-1)
+    }
+ }
+
+ func foo() {
+    err := doStuff1()
+    checkError(err)
+
+    err = doStuff2()
+    checkError(err)
+
+    err = doStuff3()
+    checkError(err)
+ }
+
+* 2.aggregation style
+
+ func handleA() {
+    fmt.Println("handle A")
+ }
+ func handleB() {
+    fmt.Println("handle B")
+ }
+ func foo() {
+    var err error
+    defer func() {
+        if err != nil {
+            handleA()
+            handleB()
+        }
+    }()
+    if err := doStuff1(); err != nil {
+        return
+    }
+    if err := doStuff2(); err != nil {
+        return
+    }
+    if err := doStuff3(); err != nil {
+        return
+    }
+ }
+
+* 3.doStuff+error style
+
+ type Writer struct {
+    err error
+    buf []byte
+    n   int
+    wr  io.Writer
+ }
+
+ func (b *Writer) Write(p []byte) (nn int, err error) {
+    ...
+    if b.err != nil {
+        return nn, b.err
+    }
+    ...
+    return nn, nil
+ }
+
+then
+
+ b := bufio.NewWriter(fd)
+ b.Write(p0[a:b])
+ b.Write(p1[c:d])
+ // and so on
+
+* panic
+
+- Don't abuse panic.
+- Don't use panic for normal error handling. 
+- Use error and multiple return values.
+
+* recover
+
+- Don't abuse recover.
+- Put it where something unexpected happen.
+
+ func safelyDo(work *Work) {
+    defer func() {
+        if err := recover(); err != nil {
+            log.Println("work failed:", err)
+        }
+    }()
+    // do may come across sth unexpected...
+    do(work)
+ }
+
+* Links
+
+.link https://golang.org/doc/effective_go.html
+
+.link https://github.com/golang/go/wiki/CodeReviewComments
+
+.link https://tonybai.com/2015/10/30/error-handling-in-go error-handling-in-go
